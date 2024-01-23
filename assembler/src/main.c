@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+// Instruction structure
 struct Instruction {
     uint8_t opcode : 4;
     uint8_t reg1 : 2;
@@ -11,18 +12,54 @@ struct Instruction {
     uint16_t addr;
 };
 
+// Register structure
+struct Register {
+    uint8_t value;
+};
+
+struct Register registers[4] = {
+    {0x00}, // A
+    {0x10}  // B
+};
+
+// Token structure
+struct Token {
+    char value[20];
+};
+
 FILE *input_file, *output_file;
 
-void assemble_instruction(char* mnemonic, char* reg1, char* reg2, char* addr, struct Instruction* instruction) {
-    // Convert mnemonic to uppercase for case-insensitive comparison
-    for (int i = 0; mnemonic[i]; i++) {
-        mnemonic[i] = toupper(mnemonic[i]);
+// Convert a string to uppercase
+void str_toupper(char *str) {
+    for (int i = 0; str[i]; i++) {
+        str[i] = toupper(str[i]);
+    }
+}
+
+// Tokenize a line into an array of tokens
+int tokenize_line(char *line, struct Token *tokens, int max_tokens) {
+    char *token = strtok(line, " \t\r\n");
+    int token_count = 0;
+
+    while (token != NULL && token_count < max_tokens) {
+        strncpy(tokens[token_count].value, token, sizeof(tokens[token_count].value) - 1);
+        tokens[token_count].value[sizeof(tokens[token_count].value) - 1] = '\0';
+        token_count++;
+        token = strtok(NULL, " \t\r\n");
     }
 
-    // Initialize instruction fields
+    return token_count;
+}
+
+// Parse tokens to generate the instruction
+void parse_instruction(struct Token *tokens, int token_count, struct Instruction *instruction) {
+    // Reset instruction fields
     memset(instruction, 0, sizeof(struct Instruction));
 
     // Set opcode based on the mnemonic
+    char *mnemonic = tokens[0].value;
+    str_toupper(mnemonic);  // Convert mnemonic to uppercase
+
     if (strcmp(mnemonic, "LD") == 0) {
         instruction->opcode = 0x0;
     } else if (strcmp(mnemonic, "ST") == 0) {
@@ -57,28 +94,55 @@ void assemble_instruction(char* mnemonic, char* reg1, char* reg2, char* addr, st
         instruction->opcode = 0xF;
     } else {
         printf("[SCAP AS] Error: Unknown mnemonic %s\n", mnemonic);
-        return;
-    }
-
-    // Set register and address fields
-    if (reg1) instruction->reg1 = atoi(&reg1[1]);
-    if (reg2) instruction->reg2 = atoi(&reg2[1]);
-    if (addr) sscanf(addr, "0x%hx", &instruction->addr);
-
-    // Log decoded values with 0x prefix
-    printf("[SCAP AS] Decoded: BIN=%04d%02d%02d%04d%08d\n",
-            instruction->opcode, instruction->reg1,
-            instruction->reg2, (instruction->addr & 0xF000) >> 12, instruction->addr & 0xFFF);
-
-    // Check the size of the output file
-    fseek(output_file, 0, SEEK_END);
-    long file_size = ftell(output_file);
-    if (file_size > 256) {
-        printf("[SCAP AS] Error: Output file size exceeds 256 bytes. (Generated it but it will break the CPU)\n");
-        fclose(input_file);
-        fclose(output_file);
         exit(1);
     }
+
+    // Set register and address fields based on the opcode
+    switch (instruction->opcode) {
+        case 0x0: case 0x1: case 0x2:
+            if (token_count >= 4) {
+                instruction->reg1 = atoi(&tokens[1].value[1]);
+                instruction->reg2 = atoi(&tokens[2].value[1]);
+                sscanf(tokens[3].value, "0x%hx", &instruction->addr);
+            }
+            break;
+
+        case 0x3: case 0x4:
+            if (token_count >= 4) {
+                instruction->reg1 = atoi(&tokens[1].value[1]);
+                instruction->reg2 = atoi(&tokens[2].value[1]);
+                sscanf(tokens[3].value, "0x%hx", &instruction->addr);
+            }
+            break;
+
+        case 0x5:
+            if (token_count >= 2) {
+                instruction->reg1 = atoi(&tokens[1].value[1]);
+            }
+            break;
+
+        case 0x6: case 0x7:
+            if (token_count >= 2) {
+                instruction->reg1 = atoi(&tokens[1].value[1]);
+            }
+            break;
+
+        case 0x8: case 0x9: case 0xA: case 0xB: case 0xC: case 0xD:
+            if (token_count >= 2) {
+                sscanf(tokens[1].value, "0x%hx", &instruction->addr);
+            }
+            break;
+        case 0xE: case 0xF:
+            break;
+        default:
+            printf("[SCAP AS] Error: Unsupported opcode %s\n", mnemonic);
+            exit(1);
+    }
+
+    // Log decoded values
+    printf("[SCAP AS] Decoded: BIN=%04d%02d%02d%04d%08d\n",
+           instruction->opcode, instruction->reg1,
+           instruction->reg2, (instruction->addr & 0xF000) >> 12, instruction->addr & 0xFFF);
 }
 
 int main(int argc, char **argv) {
@@ -109,7 +173,7 @@ int main(int argc, char **argv) {
     }
 
     char line[100];
-    char mnemonic[10], reg1[3], reg2[3], addr[8];
+    struct Token tokens[10]; // Assuming a maximum of 10 tokens per line
     struct Instruction instruction;
 
     while (fgets(line, sizeof(line), input_file) != NULL) {
@@ -118,19 +182,12 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        // Reset fields before assembling
-        memset(&instruction, 0, sizeof(struct Instruction));
-        memset(mnemonic, 0, sizeof(mnemonic));
-        memset(reg1, 0, sizeof(reg1));
-        memset(reg2, 0, sizeof(reg2));
-        memset(addr, 0, sizeof(addr));
+        // Tokenize the line
+        int token_count = tokenize_line(line, tokens, sizeof(tokens) / sizeof(tokens[0]));
 
-        // Assemble instruction based on the line
-        if (sscanf(line, "%s %[^,], %[^,], %s", mnemonic, reg1, reg2, addr) >= 2) {
-            assemble_instruction(mnemonic, reg1, reg2, addr, &instruction);
-            fwrite(&instruction, sizeof(struct Instruction), 1, output_file);
-        } else if (sscanf(line, "%s", mnemonic) == 1) {
-            assemble_instruction(mnemonic, NULL, NULL, NULL, &instruction);
+        // Parse tokens to generate the instruction
+        if (token_count > 0) {
+            parse_instruction(tokens, token_count, &instruction);
             fwrite(&instruction, sizeof(struct Instruction), 1, output_file);
         }
     }
@@ -142,3 +199,4 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
