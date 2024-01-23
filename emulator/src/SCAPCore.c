@@ -93,6 +93,7 @@ bool scap_execute()
         a = read_reg(reg1);
         b = read_reg(reg2);
         result = a + b;
+        flags = 0;
         if (result == 0)
         {
             flags |= 0x1;
@@ -106,6 +107,7 @@ bool scap_execute()
         a = read_reg(reg1);
         b = read_reg(reg2);
         result = a - b;
+        flags = 0;
         if (result == 0)
         {
             flags |= 0x1;
@@ -135,6 +137,7 @@ bool scap_execute()
         }
         return true;
     case 0xA: // JNZ
+    
         if (!(flags & 0x1))
         {
             PC = addr;
