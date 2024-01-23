@@ -11,6 +11,8 @@ struct Instruction {
     uint16_t addr;
 };
 
+FILE *input_file, *output_file;
+
 void assemble_instruction(char* mnemonic, char* reg1, char* reg2, char* addr, struct Instruction* instruction) {
     // Convert mnemonic to uppercase for case-insensitive comparison
     for (int i = 0; mnemonic[i]; i++) {
@@ -21,37 +23,37 @@ void assemble_instruction(char* mnemonic, char* reg1, char* reg2, char* addr, st
     memset(instruction, 0, sizeof(struct Instruction));
 
     // Set opcode based on the mnemonic
-    if (strcmp(mnemonic, "LDI") == 0 || strcmp(mnemonic, "ldi") == 0) {
+    if (strcmp(mnemonic, "LD") == 0) {
         instruction->opcode = 0x0;
-    } else if (strcmp(mnemonic, "ST") == 0 || strcmp(mnemonic, "st") == 0) {
+    } else if (strcmp(mnemonic, "ST") == 0) {
         instruction->opcode = 0x1;
-    } else if (strcmp(mnemonic, "MV") == 0 || strcmp(mnemonic, "mv") == 0) {
+    } else if (strcmp(mnemonic, "MV") == 0) {
         instruction->opcode = 0x2;
-    } else if (strcmp(mnemonic, "ADD") == 0 || strcmp(mnemonic, "add") == 0) {
+    } else if (strcmp(mnemonic, "ADD") == 0) {
         instruction->opcode = 0x3;
-    } else if (strcmp(mnemonic, "SUB") == 0 || strcmp(mnemonic, "sub") == 0) {
+    } else if (strcmp(mnemonic, "SUB") == 0) {
         instruction->opcode = 0x4;
-    } else if (strcmp(mnemonic, "SL") == 0 || strcmp(mnemonic, "sl") == 0) {
+    } else if (strcmp(mnemonic, "SL") == 0) {
         instruction->opcode = 0x5;
-    } else if (strcmp(mnemonic, "PUSH") == 0 || strcmp(mnemonic, "push") == 0) {
+    } else if (strcmp(mnemonic, "PUSH") == 0) {
         instruction->opcode = 0x6;
-    } else if (strcmp(mnemonic, "POP") == 0 || strcmp(mnemonic, "pop") == 0) {
+    } else if (strcmp(mnemonic, "POP") == 0) {
         instruction->opcode = 0x7;
-    } else if (strcmp(mnemonic, "JMP") == 0 || strcmp(mnemonic, "jmp") == 0) {
+    } else if (strcmp(mnemonic, "JMP") == 0) {
         instruction->opcode = 0x8;
-    } else if (strcmp(mnemonic, "JZ") == 0 || strcmp(mnemonic, "jz") == 0) {
+    } else if (strcmp(mnemonic, "JZ") == 0) {
         instruction->opcode = 0x9;
-    } else if (strcmp(mnemonic, "JNZ") == 0 || strcmp(mnemonic, "jnz") == 0) {
+    } else if (strcmp(mnemonic, "JNZ") == 0) {
         instruction->opcode = 0xA;
-    } else if (strcmp(mnemonic, "JC") == 0 || strcmp(mnemonic, "jc") == 0) {
+    } else if (strcmp(mnemonic, "JC") == 0) {
         instruction->opcode = 0xB;
-    } else if (strcmp(mnemonic, "JNC") == 0 || strcmp(mnemonic, "jnc") == 0) {
+    } else if (strcmp(mnemonic, "JNC") == 0) {
         instruction->opcode = 0xC;
-    } else if (strcmp(mnemonic, "CALL") == 0 || strcmp(mnemonic, "call") == 0) {
+    } else if (strcmp(mnemonic, "CALL") == 0) {
         instruction->opcode = 0xD;
-    } else if (strcmp(mnemonic, "RET") == 0 || strcmp(mnemonic, "ret") == 0) {
+    } else if (strcmp(mnemonic, "RET") == 0) {
         instruction->opcode = 0xE;
-    } else if (strcmp(mnemonic, "NOP") == 0 || strcmp(mnemonic, "nop") == 0) {
+    } else if (strcmp(mnemonic, "NOP") == 0) {
         instruction->opcode = 0xF;
     } else {
         printf("[SCAP AS] Error: Unknown mnemonic %s\n", mnemonic);
@@ -63,10 +65,20 @@ void assemble_instruction(char* mnemonic, char* reg1, char* reg2, char* addr, st
     if (reg2) instruction->reg2 = atoi(&reg2[1]);
     if (addr) sscanf(addr, "0x%hx", &instruction->addr);
 
-    // Log decoded values
-    printf("[SCAP AS] Decoded: HEX=%04X, BIN=%04d%02d%02d%04d%08d\n",
-       instruction->addr, instruction->opcode, instruction->reg1,
-       instruction->reg2, (instruction->addr & 0xF000) >> 12, instruction->addr & 0xFFF);    
+    // Log decoded values with 0x prefix
+    printf("[SCAP AS] Decoded: BIN=%04d%02d%02d%04d%08d\n",
+            instruction->opcode, instruction->reg1,
+            instruction->reg2, (instruction->addr & 0xF000) >> 12, instruction->addr & 0xFFF);
+
+    // Check the size of the output file
+    fseek(output_file, 0, SEEK_END);
+    long file_size = ftell(output_file);
+    if (file_size > 256) {
+        printf("[SCAP AS] Error: Output file size exceeds 256 bytes. (Generated it but it will break the CPU)\n");
+        fclose(input_file);
+        fclose(output_file);
+        exit(1);
+    }
 }
 
 int main(int argc, char **argv) {
@@ -75,7 +87,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    FILE *input_file = fopen(argv[1], "r");
+    input_file = fopen(argv[1], "r");
     if (input_file == NULL) {
         perror("[SCAP AS] Error opening input file");
         return 1;
@@ -89,7 +101,7 @@ int main(int argc, char **argv) {
     }
     snprintf(output_filename, sizeof(output_filename), "%s.bin", argv[1]);
 
-    FILE *output_file = fopen(output_filename, "wb");
+    output_file = fopen(output_filename, "wb");
     if (output_file == NULL) {
         perror("[SCAP AS] Error opening output file");
         fclose(input_file);
