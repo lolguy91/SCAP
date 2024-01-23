@@ -4,6 +4,6 @@
 #include <stdint.h>
 #include <bus.h>
 
-void ram_init(uint16_t size,uint16_t base);
+void ram_init(uint16_t base,uint16_t size);
 
 #endif

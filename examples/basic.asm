@@ -1,4 +1,0 @@
-ld A 0x0009
-ld B 0x0009
-add A B
-db 0x0001
