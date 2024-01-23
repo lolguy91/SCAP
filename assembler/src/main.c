@@ -1,65 +1,72 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 #include <ctype.h>
 
-struct IO {
-    unsigned int reg1 : 1;
-    unsigned int reg2 : 1;
-    unsigned int addr : 16;
-};
-
 struct Instruction {
-    unsigned int opcode : 4;
-    struct IO io;
+    uint8_t opcode : 4;
+    uint8_t reg1 : 2;
+    uint8_t reg2 : 2;
+    uint16_t addr;
 };
 
 void assemble_instruction(char* mnemonic, char* reg1, char* reg2, char* addr, struct Instruction* instruction) {
-    if (strcasecmp(mnemonic, "ld") == 0) {
+    // Convert mnemonic to uppercase for case-insensitive comparison
+    for (int i = 0; mnemonic[i]; i++) {
+        mnemonic[i] = toupper(mnemonic[i]);
+    }
+
+    // Initialize instruction fields
+    memset(instruction, 0, sizeof(struct Instruction));
+
+    // Set opcode based on the mnemonic
+    if (strcmp(mnemonic, "LDI") == 0 || strcmp(mnemonic, "ldi") == 0) {
         instruction->opcode = 0x0;
-    } else if (strcasecmp(mnemonic, "st") == 0) {
+    } else if (strcmp(mnemonic, "ST") == 0 || strcmp(mnemonic, "st") == 0) {
         instruction->opcode = 0x1;
-    } else if (strcasecmp(mnemonic, "mv") == 0) {
+    } else if (strcmp(mnemonic, "MV") == 0 || strcmp(mnemonic, "mv") == 0) {
         instruction->opcode = 0x2;
-    } else if (strcasecmp(mnemonic, "add") == 0) {
+    } else if (strcmp(mnemonic, "ADD") == 0 || strcmp(mnemonic, "add") == 0) {
         instruction->opcode = 0x3;
-    } else if (strcasecmp(mnemonic, "sub") == 0) {
+    } else if (strcmp(mnemonic, "SUB") == 0 || strcmp(mnemonic, "sub") == 0) {
         instruction->opcode = 0x4;
-    } else if (strcasecmp(mnemonic, "sl") == 0) {
+    } else if (strcmp(mnemonic, "SL") == 0 || strcmp(mnemonic, "sl") == 0) {
         instruction->opcode = 0x5;
-    } else if (strcasecmp(mnemonic, "push") == 0) {
+    } else if (strcmp(mnemonic, "PUSH") == 0 || strcmp(mnemonic, "push") == 0) {
         instruction->opcode = 0x6;
-    } else if (strcasecmp(mnemonic, "pop") == 0) {
+    } else if (strcmp(mnemonic, "POP") == 0 || strcmp(mnemonic, "pop") == 0) {
         instruction->opcode = 0x7;
-    } else if (strcasecmp(mnemonic, "jmp") == 0) {
+    } else if (strcmp(mnemonic, "JMP") == 0 || strcmp(mnemonic, "jmp") == 0) {
         instruction->opcode = 0x8;
-    } else if (strcasecmp(mnemonic, "jz") == 0) {
+    } else if (strcmp(mnemonic, "JZ") == 0 || strcmp(mnemonic, "jz") == 0) {
         instruction->opcode = 0x9;
-    } else if (strcasecmp(mnemonic, "jnz") == 0) {
+    } else if (strcmp(mnemonic, "JNZ") == 0 || strcmp(mnemonic, "jnz") == 0) {
         instruction->opcode = 0xA;
-    } else if (strcasecmp(mnemonic, "jc") == 0) {
+    } else if (strcmp(mnemonic, "JC") == 0 || strcmp(mnemonic, "jc") == 0) {
         instruction->opcode = 0xB;
-    } else if (strcasecmp(mnemonic, "jnc") == 0) {
+    } else if (strcmp(mnemonic, "JNC") == 0 || strcmp(mnemonic, "jnc") == 0) {
         instruction->opcode = 0xC;
-    } else if (strcasecmp(mnemonic, "call") == 0) {
+    } else if (strcmp(mnemonic, "CALL") == 0 || strcmp(mnemonic, "call") == 0) {
         instruction->opcode = 0xD;
-    } else if (strcasecmp(mnemonic, "ret") == 0) {
+    } else if (strcmp(mnemonic, "RET") == 0 || strcmp(mnemonic, "ret") == 0) {
         instruction->opcode = 0xE;
-    } else if (strcasecmp(mnemonic, "nop") == 0) {
+    } else if (strcmp(mnemonic, "NOP") == 0 || strcmp(mnemonic, "nop") == 0) {
         instruction->opcode = 0xF;
     } else {
         printf("[SCAP AS] Error: Unknown mnemonic %s\n", mnemonic);
         return;
     }
 
-    unsigned int temp_addr;
-    if (sscanf(addr, "0x%x", &temp_addr) != 1) {
-        printf("[SCAP AS] Error: Invalid address format %s\n", addr);
-        return;
-    }
-    instruction->io.addr = temp_addr;
+    // Set register and address fields
+    if (reg1) instruction->reg1 = atoi(&reg1[1]);
+    if (reg2) instruction->reg2 = atoi(&reg2[1]);
+    if (addr) sscanf(addr, "0x%hx", &instruction->addr);
 
-    printf("[SCAP AS] Assembled: %X%X%X%X\n", instruction->opcode, instruction->io.reg1, instruction->io.reg2, instruction->io.addr);
+    // Log decoded values
+    printf("[SCAP AS] Decoded: HEX=%04X, BIN=%04d%02d%02d%04d%08d\n",
+       instruction->addr, instruction->opcode, instruction->reg1,
+       instruction->reg2, (instruction->addr & 0xF000) >> 12, instruction->addr & 0xFFF);    
 }
 
 int main(int argc, char **argv) {
@@ -89,12 +96,31 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    char mnemonic[10], reg1[2], reg2[2], addr[8];
+    char line[100];
+    char mnemonic[10], reg1[3], reg2[3], addr[8];
     struct Instruction instruction;
 
-    while (fscanf(input_file, "%s %[^,], %[^,], %s", mnemonic, reg1, reg2, addr) == 4)  {
-        assemble_instruction(mnemonic, reg1, reg2, addr, &instruction);
-        fwrite(&instruction, sizeof(struct Instruction), 1, output_file);
+    while (fgets(line, sizeof(line), input_file) != NULL) {
+        // Ignore comments and empty lines
+        if (line[0] == ';' || line[0] == '\n' || line[0] == '\r') {
+            continue;
+        }
+
+        // Reset fields before assembling
+        memset(&instruction, 0, sizeof(struct Instruction));
+        memset(mnemonic, 0, sizeof(mnemonic));
+        memset(reg1, 0, sizeof(reg1));
+        memset(reg2, 0, sizeof(reg2));
+        memset(addr, 0, sizeof(addr));
+
+        // Assemble instruction based on the line
+        if (sscanf(line, "%s %[^,], %[^,], %s", mnemonic, reg1, reg2, addr) >= 2) {
+            assemble_instruction(mnemonic, reg1, reg2, addr, &instruction);
+            fwrite(&instruction, sizeof(struct Instruction), 1, output_file);
+        } else if (sscanf(line, "%s", mnemonic) == 1) {
+            assemble_instruction(mnemonic, NULL, NULL, NULL, &instruction);
+            fwrite(&instruction, sizeof(struct Instruction), 1, output_file);
+        }
     }
 
     printf("[SCAP AS] Assembly completed. Output written to %s\n", output_filename);

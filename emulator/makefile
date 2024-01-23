@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Werror -Isrc -g -D_DEBUG
+CFLAGS = -Wall -Werror -Isrc -g -D_DEBUG #  Disables the debug flag, no stepping
 SRCDIR = src
 OBJDIR = bin
 TARGET = bin/scap-emu
