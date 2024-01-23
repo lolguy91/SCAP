@@ -6,9 +6,9 @@
 
 // Instruction structure
 struct Instruction {
-    uint8_t opcode : 4;
     uint8_t reg1 : 2;
     uint8_t reg2 : 2;
+    uint8_t opcode : 4;
     uint16_t addr;
 };
 
@@ -102,8 +102,7 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
         case 0x0: case 0x1: case 0x2:
             if (token_count >= 4) {
                 instruction->reg1 = atoi(&tokens[1].value[1]);
-                instruction->reg2 = atoi(&tokens[2].value[1]);
-                sscanf(tokens[3].value, "0x%hx", &instruction->addr);
+                sscanf(tokens[2].value, "0x%hx", &instruction->addr);
             }
             break;
 
@@ -138,11 +137,21 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
             printf("[SCAP AS] Error: Unsupported opcode %s\n", mnemonic);
             exit(1);
     }
-
+    //switch byte order of addr to big endian if neeeded
+    #ifdef BIG_ENDIAN
+        instruction->addr = __builtin_bswap16(instruction->addr);
+    #endif
     // Log decoded values
-    printf("[SCAP AS] Decoded: BIN=%04d%02d%02d%04d%08d\n",
+    #ifdef BIG_ENDIAN
+    //print addr switched
+    printf("[SCAP AS] Decoded: BIN=0x%01x%01x%01x%02x%02x\n",
            instruction->opcode, instruction->reg1,
-           instruction->reg2, (instruction->addr & 0xF000) >> 12, instruction->addr & 0xFFF);
+           instruction->reg2, instruction->addr & 0xff, instruction->addr >> 8);
+    #else
+    printf("[SCAP AS] Decoded: BIN=0x%01x%01x%01x%04x\n",
+           instruction->opcode, instruction->reg1,
+           instruction->reg2, instruction->addr);
+    #endif
 }
 
 int main(int argc, char **argv) {
