@@ -1,4 +1,4 @@
-; Simple test.asm for SCAP assembler
+; Simple example using SCAP-assembly
 
 ; MV instruction - Move immediate value 1 to register A
 MV A, 0x0001
