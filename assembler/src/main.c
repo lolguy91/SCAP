@@ -277,6 +277,14 @@ int main(int argc, char **argv) {
                         break;
                     }
                 }
+                if (token_count >= 2) {
+                    str_toupper(tokens[1].value);
+                    if(strcmp(tokens[1].value, "DB") == 0){
+                        curraddr += 1;
+                    }else{
+                        curraddr += 3;
+                    }
+                }
             }else{
                 str_toupper(tokens[0].value);
                 if(strcmp(tokens[0].value, "DB") == 0){
