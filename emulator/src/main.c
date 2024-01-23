@@ -7,7 +7,14 @@
 
 int main(int argc, char *argv[]) {
     FILE *rom;
-    rom = fopen("bootrom.bin", "rb");
+
+    if(argc != 2) {
+        printf("Usage: %s <rom>\n", argv[0]);
+        return 1;
+    }
+
+    rom = fopen(argv[1], "rb");
+
     if (rom == NULL) {
         printf("Error opening %s\n", argv[1]);
         return 1;

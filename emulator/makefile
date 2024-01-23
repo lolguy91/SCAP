@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Werror -Isrc -g -D_DEBUG
 SRCDIR = src
 OBJDIR = bin
-TARGET = bin/program
+TARGET = bin/scap-emu
 
 SOURCES := $(wildcard $(SRCDIR)/*.c)
 OBJECTS := $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
