@@ -3,6 +3,7 @@ CFLAGS = -Wall -Werror -Isrc -g -D_DEBUG
 SRCDIR = src
 OBJDIR = bin
 TARGET = bin/scap-as
+INSTALL_DIR = /usr/local/bin
 
 SOURCES := $(wildcard $(SRCDIR)/*.c)
 OBJECTS := $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
@@ -22,3 +23,7 @@ run: $(TARGET)
 
 clean:
 	rm -rf $(OBJDIR)/*.o $(TARGET)
+
+install: $(TARGET)
+	@sudo mkdir -p $(INSTALL_DIR)
+	@sudo ln -sf $(abspath $(TARGET)) $(INSTALL_DIR)/scap-as
