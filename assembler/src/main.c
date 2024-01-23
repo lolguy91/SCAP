@@ -264,25 +264,26 @@ int main(int argc, char **argv) {
         // Tokenize the line
         int token_count = tokenize_line(line, tokens, sizeof(tokens) / sizeof(tokens[0]));
 
-        //detect tags
-        if(tokens[0].value[strlen(tokens[0].value) - 1] == ':' && token_count == 1){
-            
-            for(int i = 0; i < 255; i++){
-                if(tags[i].exists == false){
-                    tags[i].exists = true;
-                    memcpy(tags[i].name, &tokens[0].value[0], strlen(tokens[0].value) - 1);
-                    tags[i].name[strlen(tokens[0].value) - 1] = '\0';
-                    tags[i].addr = curraddr;
-                    printf("[SCAP AS] Found tag: %s\n", tags[i].name);
-                    break;
+        if(token_count >= 0){
+            //detect tags
+            if(tokens[0].value[strlen(tokens[0].value) - 1] == ':'){
+                for(int i = 0; i < 255; i++){
+                    if(tags[i].exists == false){
+                        tags[i].exists = true;
+                        memcpy(tags[i].name, &tokens[0].value[0], strlen(tokens[0].value) - 1);
+                        tags[i].name[strlen(tokens[0].value) - 1] = '\0';
+                        tags[i].addr = curraddr;
+                        printf("[SCAP AS] Found tag: %s\n", tags[i].name);
+                        break;
+                    }
                 }
-            }
-        }else{
-            str_toupper(tokens[0].value);
-            if(strcmp(tokens[0].value, "DB") == 0){
-                curraddr += 1;
             }else{
-                curraddr += 3;
+                str_toupper(tokens[0].value);
+                if(strcmp(tokens[0].value, "DB") == 0){
+                    curraddr += 1;
+                }else{
+                    curraddr += 3;
+                }
             }
         }
     }
@@ -298,21 +299,31 @@ int main(int argc, char **argv) {
         // Tokenize the line
         int token_count = tokenize_line(line, tokens, sizeof(tokens) / sizeof(tokens[0]));
 
-        //ignore tags
-        if(tokens[0].value[strlen(tokens[0].value) - 1] == ':' && token_count == 1){
-            continue;
-        }
-
         // Parse tokens to generate the instruction
         if (token_count > 0) {
-            parse_instruction(tokens, token_count, &instruction);
-            if(instruction.byte1 == 0xFF) {
-                instruction.addr &= 0xFF;
-                fwrite(&instruction.addr , 1, 1, output_file);
-            }else{
-                fwrite(&instruction.byte1, 1, 1, output_file);
-                fwrite(&instruction.addr, 2, 1, output_file);
+            //ignore tags
+            if(tokens[0].value[strlen(tokens[0].value) - 1] == ':'){
+                if(token_count >= 2) {
+                    parse_instruction(&tokens[1], token_count, &instruction);
+                    if(instruction.byte1 == 0xFF) {
+                        instruction.addr &= 0xFF;
+                        fwrite(&instruction.addr , 1, 1, output_file);
+                    }else{
+                        fwrite(&instruction.byte1, 1, 1, output_file);
+                        fwrite(&instruction.addr, 2, 1, output_file);
+                    }
+                }
+            } else{
+                parse_instruction(tokens, token_count, &instruction);
+                if(instruction.byte1 == 0xFF) {
+                    instruction.addr &= 0xFF;
+                    fwrite(&instruction.addr , 1, 1, output_file);
+                }else{
+                    fwrite(&instruction.byte1, 1, 1, output_file);
+                    fwrite(&instruction.addr, 2, 1, output_file);
+                }
             }
+
         }
     }
 
