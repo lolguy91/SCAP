@@ -115,8 +115,8 @@ bool scap_execute()
             flags |= 0x2;
         }
         return write_reg(reg1, result);
-    case 0x5: // SL
-        return write_reg(reg1, read_reg(reg1) << read_reg(reg2));
+    case 0x5: // LDP
+        return write_reg(reg1, bus_read((uint16_t)read_reg(reg2)));
     case 0x6: // PUSH
         SP++;
         bus_write(SP, read_reg(reg1));

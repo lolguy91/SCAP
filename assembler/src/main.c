@@ -85,6 +85,7 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
     uint8_t reg2 = 0;
     // Set opcode based on the mnemonic
     char *mnemonic = tokens[0].value;
+
     str_toupper(mnemonic);  // Convert mnemonic to uppercase
 
     if (strcmp(mnemonic, "LD") == 0) {
@@ -97,7 +98,7 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
         opcode = 0x3;
     } else if (strcmp(mnemonic, "SUB") == 0) {
         opcode = 0x4;
-    } else if (strcmp(mnemonic, "SL") == 0) {
+    } else if (strcmp(mnemonic, "LDP") == 0) {
         opcode = 0x5;
     } else if (strcmp(mnemonic, "PUSH") == 0) {
         opcode = 0x6;
@@ -159,6 +160,7 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
         case 0x5:
             if (token_count >= 2) {
                 reg1 = regname2id(tokens[1].value);
+                reg2 = regname2id(tokens[2].value);
             } else {
                 printf("[SCAP AS] Error: Missing register\n");
                 exit(1);
@@ -191,7 +193,13 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
         case 0xE: case 0xF:
             break;
         case 0xFF://DB(special case)
-            sscanf(tokens[1].value, "0x%hx", &instruction->addr);
+            if(tokens[1].value[0] == '0' && tokens[1].value[1] == 'x'){
+                sscanf(tokens[1].value, "0x%hx", &instruction->addr);
+            }else if(tokens[1].value[0] == '0' && tokens[1].value[1] == 'b'){
+                sscanf(tokens[1].value, "0b%hx", &instruction->addr);
+            } else if(tokens[1].value[0] == '$'){
+                instruction->addr = get_tag_addr(&tokens[1].value[1]);
+            }
             break;
         default:
             printf("[SCAP AS] Error: Unsupported opcode %s\n", mnemonic);
@@ -277,7 +285,7 @@ int main(int argc, char **argv) {
                         break;
                     }
                 }
-                if (token_count >= 2) {
+                if (token_count >= 2 && tokens[1].value[0] != ';') {
                     str_toupper(tokens[1].value);
                     if(strcmp(tokens[1].value, "DB") == 0){
                         curraddr += 1;
@@ -298,6 +306,7 @@ int main(int argc, char **argv) {
 
     //rewind input file
     fseek(input_file, 0, SEEK_SET);
+    curraddr = 0;
 
     while (fgets(line, sizeof(line), input_file) != NULL) {
         // Ignore comments and empty lines
@@ -311,14 +320,16 @@ int main(int argc, char **argv) {
         if (token_count > 0) {
             //ignore tags
             if(tokens[0].value[strlen(tokens[0].value) - 1] == ':'){
-                if(token_count >= 2) {
+                if(token_count >= 2 && tokens[1].value[0] != ';') {
                     parse_instruction(&tokens[1], token_count, &instruction);
                     if(instruction.byte1 == 0xFF) {
                         instruction.addr &= 0xFF;
                         fwrite(&instruction.addr , 1, 1, output_file);
+                        curraddr += 1;
                     }else{
                         fwrite(&instruction.byte1, 1, 1, output_file);
                         fwrite(&instruction.addr, 2, 1, output_file);
+                        curraddr += 3;
                     }
                 }
             } else{
@@ -326,9 +337,11 @@ int main(int argc, char **argv) {
                 if(instruction.byte1 == 0xFF) {
                     instruction.addr &= 0xFF;
                     fwrite(&instruction.addr , 1, 1, output_file);
+                    curraddr += 1;
                 }else{
                     fwrite(&instruction.byte1, 1, 1, output_file);
                     fwrite(&instruction.addr, 2, 1, output_file);
+                    curraddr += 3;
                 }
             }
 

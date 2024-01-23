@@ -35,12 +35,11 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         if (!step_scap()) break;
+        if (!debug_mode) continue;
         
-        if (debug_mode) {
-            // Wait for a keypress
-            char c;
-            scanf("%c", &c);
-        }
+        // Wait for a keypress
+        char c;
+        scanf("%c", &c);
     }
 
     return 0;
