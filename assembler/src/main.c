@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -15,11 +16,17 @@ struct Register {
     uint8_t value;
 };
 
-
 // Token structure
 struct Token {
     char value[20];
 };
+
+struct tag {
+    bool exists;
+    char name[256];
+    uint16_t addr;
+};
+struct tag tags[255];
 
 FILE *input_file, *output_file;
 
@@ -28,6 +35,18 @@ void str_toupper(char *str) {
     for (int i = 0; str[i]; i++) {
         str[i] = toupper(str[i]);
     }
+}
+
+uint16_t get_tag_addr(char *name) {
+    for (int i = 0; i < 255; i++) {
+        if(tags[i].exists) {
+        }
+        if (tags[i].exists && strcmp(tags[i].name, name) == 0) {
+            return tags[i].addr;
+        }
+    }
+    printf("[SCAP AS] Error: Tag '%s' not found\n", name);
+    exit(1);
 }
 
 // Tokenize a line into an array of tokens
@@ -114,7 +133,13 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
         case 0x0: case 0x1: case 0x2:
             if (token_count >= 3) {
                 reg1 = regname2id(tokens[1].value);
-                sscanf(tokens[2].value, "0x%hx", &instruction->addr);
+                if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'x'){
+                    sscanf(tokens[2].value, "0x%hx", &instruction->addr);
+                }else if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'b'){
+                    sscanf(tokens[2].value, "0b%hx", &instruction->addr);
+                } else if(tokens[2].value[0] == '$'){
+                    instruction->addr = get_tag_addr(&tokens[2].value[1]);
+                }
             }else{
                 printf("[SCAP AS] Error: Missing register or address\n");
                 exit(1);
@@ -151,7 +176,13 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
 
         case 0x8: case 0x9: case 0xA: case 0xB: case 0xC: case 0xD:
             if (token_count >= 2) {
-                sscanf(tokens[1].value, "0x%hx", &instruction->addr);
+                if(tokens[1].value[0] == '0' && tokens[1].value[1] == 'x'){
+                    sscanf(tokens[1].value, "0x%hx", &instruction->addr);
+                }else if(tokens[1].value[0] == '0' && tokens[1].value[1] == 'b'){
+                    sscanf(tokens[1].value, "0b%hx", &instruction->addr);
+                } else if(tokens[1].value[0] == '$'){
+                    instruction->addr = get_tag_addr(&tokens[1].value[1]);
+                }
             } else {
                 printf("[SCAP AS] Error: Missing address\n");
                 exit(1);
@@ -223,15 +254,54 @@ int main(int argc, char **argv) {
     char line[100];
     struct Token tokens[10]; // Assuming a maximum of 10 tokens per line
     struct Instruction instruction;
+    uint16_t curraddr;
+    //get tags
+    while (fgets(line, sizeof(line), input_file) != NULL) {
+        // Ignore comments and empty lines
+        if (line[0] == ';' || line[0] == '\n' || line[0] == '\r') {
+            continue;
+        }
+        // Tokenize the line
+        int token_count = tokenize_line(line, tokens, sizeof(tokens) / sizeof(tokens[0]));
+
+        //detect tags
+        if(tokens[0].value[strlen(tokens[0].value) - 1] == ':' && token_count == 1){
+            
+            for(int i = 0; i < 255; i++){
+                if(tags[i].exists == false){
+                    tags[i].exists = true;
+                    memcpy(tags[i].name, &tokens[0].value[0], strlen(tokens[0].value) - 1);
+                    tags[i].name[strlen(tokens[0].value) - 1] = '\0';
+                    tags[i].addr = curraddr;
+                    printf("[SCAP AS] Found tag: %s\n", tags[i].name);
+                    break;
+                }
+            }
+        }else{
+            str_toupper(tokens[0].value);
+            if(strcmp(tokens[0].value, "DB") == 0){
+                curraddr += 1;
+            }else{
+                curraddr += 3;
+            }
+        }
+    }
+
+    //rewind input file
+    fseek(input_file, 0, SEEK_SET);
 
     while (fgets(line, sizeof(line), input_file) != NULL) {
         // Ignore comments and empty lines
         if (line[0] == ';' || line[0] == '\n' || line[0] == '\r') {
             continue;
         }
-
         // Tokenize the line
         int token_count = tokenize_line(line, tokens, sizeof(tokens) / sizeof(tokens[0]));
+
+        //ignore tags
+        if(tokens[0].value[strlen(tokens[0].value) - 1] == ':' && token_count == 1){
+            continue;
+        }
 
         // Parse tokens to generate the instruction
         if (token_count > 0) {

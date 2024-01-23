@@ -12,9 +12,9 @@ uint8_t uart_read(uint16_t addr){
     return data;
 }
 void uart_write(uint16_t addr, uint8_t data){
-    //if (addr != uart_base){
-    //    return;
-    //}
+    if (addr != uart_base){
+        return;
+    }
     printf("%c",data);
 }
 
