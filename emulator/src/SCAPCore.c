@@ -189,6 +189,7 @@ bool step_scap()
     bool e = scap_execute();
     if (debug)
     {
+        printf("========\n");
         printf("opcode: 0x%02X\n", opcode);
         printf("addr: 0x%04X\n", addr);
         printf("reg1: %d\n", reg1);

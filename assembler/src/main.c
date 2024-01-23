@@ -6,9 +6,7 @@
 
 // Instruction structure
 struct Instruction {
-    uint8_t reg1 : 2;
-    uint8_t reg2 : 2;
-    uint8_t opcode : 4;
+    uint8_t byte1;
     uint16_t addr;
 };
 
@@ -17,10 +15,6 @@ struct Register {
     uint8_t value;
 };
 
-struct Register registers[4] = {
-    {0x00}, // A
-    {0x10}  // B
-};
 
 // Token structure
 struct Token {
@@ -50,108 +44,153 @@ int tokenize_line(char *line, struct Token *tokens, int max_tokens) {
 
     return token_count;
 }
+uint8_t regname2id(char *name) {
+    if (strcmp(name, "A") == 0) {
+        return 0;
+    } else if (strcmp(name, "B") == 0) {
+        return 1;
+    } else if (strcmp(name, "SPL") == 0) {
+        return 2;
+    } else if (strcmp(name, "SPH") == 0) {
+        return 3;
+    }
+    return 0;
+}
 
 // Parse tokens to generate the instruction
 void parse_instruction(struct Token *tokens, int token_count, struct Instruction *instruction) {
     // Reset instruction fields
     memset(instruction, 0, sizeof(struct Instruction));
-
+    uint8_t opcode = 0;
+    uint8_t reg1 = 0;
+    uint8_t reg2 = 0;
     // Set opcode based on the mnemonic
     char *mnemonic = tokens[0].value;
     str_toupper(mnemonic);  // Convert mnemonic to uppercase
 
     if (strcmp(mnemonic, "LD") == 0) {
-        instruction->opcode = 0x0;
+        opcode = 0x0;
     } else if (strcmp(mnemonic, "ST") == 0) {
-        instruction->opcode = 0x1;
+        opcode = 0x1;
     } else if (strcmp(mnemonic, "MV") == 0) {
-        instruction->opcode = 0x2;
+        opcode = 0x2;
     } else if (strcmp(mnemonic, "ADD") == 0) {
-        instruction->opcode = 0x3;
+        opcode = 0x3;
     } else if (strcmp(mnemonic, "SUB") == 0) {
-        instruction->opcode = 0x4;
+        opcode = 0x4;
     } else if (strcmp(mnemonic, "SL") == 0) {
-        instruction->opcode = 0x5;
+        opcode = 0x5;
     } else if (strcmp(mnemonic, "PUSH") == 0) {
-        instruction->opcode = 0x6;
+        opcode = 0x6;
     } else if (strcmp(mnemonic, "POP") == 0) {
-        instruction->opcode = 0x7;
+        opcode = 0x7;
     } else if (strcmp(mnemonic, "JMP") == 0) {
-        instruction->opcode = 0x8;
+        opcode = 0x8;
     } else if (strcmp(mnemonic, "JZ") == 0) {
-        instruction->opcode = 0x9;
+        opcode = 0x9;
     } else if (strcmp(mnemonic, "JNZ") == 0) {
-        instruction->opcode = 0xA;
+        opcode = 0xA;
     } else if (strcmp(mnemonic, "JC") == 0) {
-        instruction->opcode = 0xB;
+        opcode = 0xB;
     } else if (strcmp(mnemonic, "JNC") == 0) {
-        instruction->opcode = 0xC;
+        opcode = 0xC;
     } else if (strcmp(mnemonic, "CALL") == 0) {
-        instruction->opcode = 0xD;
+        opcode = 0xD;
     } else if (strcmp(mnemonic, "RET") == 0) {
-        instruction->opcode = 0xE;
+        opcode = 0xE;
     } else if (strcmp(mnemonic, "NOP") == 0) {
-        instruction->opcode = 0xF;
+        opcode = 0xF;
+    } else if (strcmp(mnemonic, "DB") == 0) {
+        opcode = 0xFF;
+        reg1 = 0xFF;
+        reg2 = 0xFF;
     } else {
         printf("[SCAP AS] Error: Unknown mnemonic %s\n", mnemonic);
         exit(1);
     }
 
     // Set register and address fields based on the opcode
-    switch (instruction->opcode) {
+    switch (opcode) {
         case 0x0: case 0x1: case 0x2:
-            if (token_count >= 4) {
-                instruction->reg1 = atoi(&tokens[1].value[1]);
+            if (token_count >= 3) {
+                reg1 = regname2id(tokens[1].value);
                 sscanf(tokens[2].value, "0x%hx", &instruction->addr);
+            }else{
+                printf("[SCAP AS] Error: Missing register or address\n");
+                exit(1);
             }
             break;
 
         case 0x3: case 0x4:
-            if (token_count >= 4) {
-                instruction->reg1 = atoi(&tokens[1].value[1]);
-                instruction->reg2 = atoi(&tokens[2].value[1]);
-                sscanf(tokens[3].value, "0x%hx", &instruction->addr);
+            if (token_count >= 3) {
+                reg1 = regname2id(tokens[1].value);
+                reg2 = regname2id(tokens[2].value);
+            } else {
+                printf("[SCAP AS] Error: Missing register \n");
+                exit(1);
             }
             break;
 
         case 0x5:
             if (token_count >= 2) {
-                instruction->reg1 = atoi(&tokens[1].value[1]);
+                reg1 = regname2id(tokens[1].value);
+            } else {
+                printf("[SCAP AS] Error: Missing register\n");
+                exit(1);
             }
             break;
 
         case 0x6: case 0x7:
             if (token_count >= 2) {
-                instruction->reg1 = atoi(&tokens[1].value[1]);
+                reg1 = regname2id(tokens[1].value);
+            } else {
+                printf("[SCAP AS] Error: Missing register\n");
+                exit(1);
             }
             break;
 
         case 0x8: case 0x9: case 0xA: case 0xB: case 0xC: case 0xD:
             if (token_count >= 2) {
                 sscanf(tokens[1].value, "0x%hx", &instruction->addr);
+            } else {
+                printf("[SCAP AS] Error: Missing address\n");
+                exit(1);
             }
             break;
         case 0xE: case 0xF:
+            break;
+        case 0xFF://DB(special case)
+            sscanf(tokens[1].value, "0x%hx", &instruction->addr);
             break;
         default:
             printf("[SCAP AS] Error: Unsupported opcode %s\n", mnemonic);
             exit(1);
     }
     //switch byte order of addr to big endian if neeeded
-    #ifdef BIG_ENDIAN
-        instruction->addr = __builtin_bswap16(instruction->addr);
+    #ifdef _BIG_ENDIAN_
+        if(opcode != 0xFF){
+            instruction->addr = __builtin_bswap16(instruction->addr);
+        }
     #endif
-    // Log decoded values
-    #ifdef BIG_ENDIAN
-    //print addr switched
-    printf("[SCAP AS] Decoded: BIN=0x%01x%01x%01x%02x%02x\n",
-           instruction->opcode, instruction->reg1,
-           instruction->reg2, instruction->addr & 0xff, instruction->addr >> 8);
-    #else
-    printf("[SCAP AS] Decoded: BIN=0x%01x%01x%01x%04x\n",
-           instruction->opcode, instruction->reg1,
-           instruction->reg2, instruction->addr);
-    #endif
+    instruction->byte1 = opcode << 4;
+    instruction->byte1 |= reg1 << 0;
+    instruction->byte1 |= reg2 << 2;
+    if(opcode != 0xFF){
+        #ifdef _BIG_ENDIAN_
+        // Log decoded values switched
+        printf("[SCAP AS] Decoded: BIN=0x%02x%02x%02x\n",
+               instruction->byte1, instruction->addr & 0xff,
+               instruction->addr >> 8);
+        #else
+        // Log decoded values normally
+        printf("[SCAP AS] Decoded: BIN=0x%02x%04x\n",
+               instruction->byte1, instruction->addr);
+        #endif
+    }else{
+        // Log DB value 
+        printf("[SCAP AS] DB val: 0x%02x\n",
+               instruction->addr & 0xff);
+    }
 }
 
 int main(int argc, char **argv) {
@@ -197,7 +236,13 @@ int main(int argc, char **argv) {
         // Parse tokens to generate the instruction
         if (token_count > 0) {
             parse_instruction(tokens, token_count, &instruction);
-            fwrite(&instruction, sizeof(struct Instruction), 1, output_file);
+            if(instruction.byte1 == 0xFF) {
+                instruction.addr &= 0xFF;
+                fwrite(&instruction.addr , 1, 1, output_file);
+            }else{
+                fwrite(&instruction.byte1, 1, 1, output_file);
+                fwrite(&instruction.addr, 2, 1, output_file);
+            }
         }
     }
 
