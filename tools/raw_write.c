@@ -15,14 +15,15 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    // Parse the binary input and write the corresponding bytes to the output file
+    // Parse the binary input and write the corresponding bytes to the output
+    // file
     int bit;
     unsigned char byte = 0;
     int bitCount = 0;
 
     for (int i = 0; argv[1][i] != '\0'; i++) {
         bit = argv[1][i];
-        
+
         if (bit == '0' || bit == '1') {
             byte = (byte << 1) | (bit - '0');
             bitCount++;

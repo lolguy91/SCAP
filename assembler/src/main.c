@@ -1,35 +1,38 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
-#include <stdlib.h>
 #include <ctype.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-// Instruction structure
+// Instruction def
 struct Instruction {
     uint8_t byte1;
     uint16_t addr;
     uint8_t imm;
 };
 
-// Register structure
+// Register def
 struct Register {
     uint8_t value;
 };
 
-// Token structure
+// Token def
 struct Token {
     char value[20];
 };
 
-struct tag {
+// Tag def
+struct Tag {
     bool exists;
     char name[256];
     uint16_t addr;
 };
-struct tag tags[255];
+struct Tag tags[255];
 
 FILE *input_file, *output_file;
+
+bool verbose_mode = false;
 
 // Convert a string to uppercase
 void str_toupper(char *str) {
@@ -37,10 +40,10 @@ void str_toupper(char *str) {
         str[i] = toupper(str[i]);
     }
 }
-
+// Get the address of a tag by name
 uint16_t get_tag_addr(char *name) {
     for (int i = 0; i < 255; i++) {
-        if(tags[i].exists) {
+        if (tags[i].exists) {
         }
         if (tags[i].exists && strcmp(tags[i].name, name) == 0) {
             return tags[i].addr;
@@ -56,7 +59,8 @@ int tokenize_line(char *line, struct Token *tokens, int max_tokens) {
     int token_count = 0;
 
     while (token != NULL && token_count < max_tokens) {
-        strncpy(tokens[token_count].value, token, sizeof(tokens[token_count].value) - 1);
+        strncpy(tokens[token_count].value, token,
+                sizeof(tokens[token_count].value) - 1);
         tokens[token_count].value[sizeof(tokens[token_count].value) - 1] = '\0';
         token_count++;
         token = strtok(NULL, " \t\r\n");
@@ -64,6 +68,7 @@ int tokenize_line(char *line, struct Token *tokens, int max_tokens) {
 
     return token_count;
 }
+// Get the id of a register by name
 uint8_t regname2id(char *name) {
     if (strcmp(name, "A") == 0) {
         return 0;
@@ -78,16 +83,18 @@ uint8_t regname2id(char *name) {
 }
 
 // Parse tokens to generate the instruction
-void parse_instruction(struct Token *tokens, int token_count, struct Instruction *instruction) {
+void parse_instruction(struct Token *tokens, int token_count,
+                       struct Instruction *instruction) {
     // Reset instruction fields
     memset(instruction, 0, sizeof(struct Instruction));
     uint8_t opcode = 0;
     uint8_t reg1 = 0;
     uint8_t reg2 = 0;
+
     // Set opcode based on the mnemonic
     char *mnemonic = tokens[0].value;
 
-    str_toupper(mnemonic);  // Convert mnemonic to uppercase
+    str_toupper(mnemonic); // Convert mnemonic to uppercase
 
     if (strcmp(mnemonic, "LD") == 0) {
         opcode = 0x0;
@@ -132,141 +139,151 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
 
     // Set register and address fields based on the opcode
     switch (opcode) {
-        case 0x0: case 0x1: case 0x2:
-            if (token_count >= 3) {
-                reg1 = regname2id(tokens[1].value);
-                if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'x'){
-                    sscanf(tokens[2].value, "0x%hx", &instruction->addr);
-                }else if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'b'){
-                    sscanf(tokens[2].value, "0b%hx", &instruction->addr);
-                } else if(tokens[2].value[0] == '$'){
-                    instruction->addr = get_tag_addr(&tokens[2].value[1]);
-                }
-            }else{
-                printf("[SCAP AS] Error: Missing register or address\n");
-                exit(1);
+    case 0x0:
+    case 0x1:
+    case 0x2:
+        if (token_count >= 3) {
+            reg1 = regname2id(tokens[1].value);
+            if (tokens[2].value[0] == '0' && tokens[2].value[1] == 'x') {
+                sscanf(tokens[2].value, "0x%hx", &instruction->addr);
+            } else if (tokens[2].value[0] == '0' && tokens[2].value[1] == 'b') {
+                sscanf(tokens[2].value, "0b%hx", &instruction->addr);
+            } else if (tokens[2].value[0] == '$') {
+                instruction->addr = get_tag_addr(&tokens[2].value[1]);
             }
-            break;
+        } else {
+            printf("[SCAP AS] Error: Missing register or address\n");
+            exit(1);
+        }
+        break;
 
-        case 0x3: case 0x4:
-            if (token_count >= 3) {
-                reg1 = regname2id(tokens[1].value);
-                reg2 = regname2id(tokens[2].value);
-            } else {
-                printf("[SCAP AS] Error: Missing register \n");
-                exit(1);
-            }
-            break;
+    case 0x3:
+    case 0x4:
+        if (token_count >= 3) {
+            reg1 = regname2id(tokens[1].value);
+            reg2 = regname2id(tokens[2].value);
+        } else {
+            printf("[SCAP AS] Error: Missing register \n");
+            exit(1);
+        }
+        break;
 
-        case 0x5:
-            if (token_count >= 2) {
-                reg1 = regname2id(tokens[1].value);
-            } else {
-                printf("[SCAP AS] Error: Missing register\n");
-                exit(1);
-            }
-            break;
+    case 0x5:
+        if (token_count >= 2) {
+            reg1 = regname2id(tokens[1].value);
+        } else {
+            printf("[SCAP AS] Error: Missing register\n");
+            exit(1);
+        }
+        break;
 
-        case 0x6: case 0x7:
-            if (token_count >= 2) {
-                reg1 = regname2id(tokens[1].value);
-            } else {
-                printf("[SCAP AS] Error: Missing register\n");
-                exit(1);
-            }
-            break;
+    case 0x6:
+    case 0x7:
+        if (token_count >= 2) {
+            reg1 = regname2id(tokens[1].value);
+        } else {
+            printf("[SCAP AS] Error: Missing register\n");
+            exit(1);
+        }
+        break;
 
-        case 0xB:
-            if (token_count >= 3) {
-                reg1 = regname2id(tokens[1].value);
-                if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'x'){
-                    sscanf(tokens[2].value, "0x%hx", &instruction->addr);
-                }else if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'b'){
-                    sscanf(tokens[2].value, "0b%hx", &instruction->addr);
-                } else if(tokens[2].value[0] == '$'){
-                    instruction->addr = get_tag_addr(&tokens[2].value[1]);
-                }
-            }else{
-                printf("[SCAP AS] Error: Missing register or address\n");
-                exit(1);
+    case 0xB:
+        if (token_count >= 3) {
+            reg1 = regname2id(tokens[1].value);
+            if (tokens[2].value[0] == '0' && tokens[2].value[1] == 'x') {
+                sscanf(tokens[2].value, "0x%hx", &instruction->addr);
+            } else if (tokens[2].value[0] == '0' && tokens[2].value[1] == 'b') {
+                sscanf(tokens[2].value, "0b%hx", &instruction->addr);
+            } else if (tokens[2].value[0] == '$') {
+                instruction->addr = get_tag_addr(&tokens[2].value[1]);
             }
-            break;
-        case 0xC:
-            if (token_count >= 3) {
-                reg1 = regname2id(tokens[1].value);
-                if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'x'){
-                    sscanf(tokens[2].value, "0x%hhx", &instruction->imm);
-                }else if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'b'){
-                    sscanf(tokens[2].value, "0b%hhx", &instruction->imm);
-                } else if(tokens[2].value[0] == '$'){
-                    instruction->imm = get_tag_addr(&tokens[2].value[1]) & 0xFF;
-                }
-            }else{
-                printf("[SCAP AS] Error: Missing register or address\n");
-                exit(1);
+        } else {
+            printf("[SCAP AS] Error: Missing register or address\n");
+            exit(1);
+        }
+        break;
+    case 0xC:
+        if (token_count >= 3) {
+            reg1 = regname2id(tokens[1].value);
+            if (tokens[2].value[0] == '0' && tokens[2].value[1] == 'x') {
+                sscanf(tokens[2].value, "0x%hhx", &instruction->imm);
+            } else if (tokens[2].value[0] == '0' && tokens[2].value[1] == 'b') {
+                sscanf(tokens[2].value, "0b%hhx", &instruction->imm);
+            } else if (tokens[2].value[0] == '$') {
+                instruction->imm = get_tag_addr(&tokens[2].value[1]) & 0xFF;
             }
-            break;
+        } else {
+            printf("[SCAP AS] Error: Missing register or address\n");
+            exit(1);
+        }
+        break;
 
-            break;
-        case 0x8: case 0x9: case 0xA: case 0xD:
-            if (token_count >= 2) {
-                if(tokens[1].value[0] == '0' && tokens[1].value[1] == 'x'){
-                    sscanf(tokens[1].value, "0x%hx", &instruction->addr);
-                }else if(tokens[1].value[0] == '0' && tokens[1].value[1] == 'b'){
-                    sscanf(tokens[1].value, "0b%hx", &instruction->addr);
-                } else if(tokens[1].value[0] == '$'){
-                    instruction->addr = get_tag_addr(&tokens[1].value[1]);
-                }
-            } else {
-                printf("[SCAP AS] Error: Missing address\n");
-                exit(1);
-            }
-            break;
-        case 0xE: case 0xF:
-            break;
-        case 0xFF://DB(special case)
-            if(tokens[1].value[0] == '0' && tokens[1].value[1] == 'x'){
+        break;
+    case 0x8:
+    case 0x9:
+    case 0xA:
+    case 0xD:
+        if (token_count >= 2) {
+            if (tokens[1].value[0] == '0' && tokens[1].value[1] == 'x') {
                 sscanf(tokens[1].value, "0x%hx", &instruction->addr);
-            }else if(tokens[1].value[0] == '0' && tokens[1].value[1] == 'b'){
+            } else if (tokens[1].value[0] == '0' && tokens[1].value[1] == 'b') {
                 sscanf(tokens[1].value, "0b%hx", &instruction->addr);
-            } else if(tokens[1].value[0] == '$'){
+            } else if (tokens[1].value[0] == '$') {
                 instruction->addr = get_tag_addr(&tokens[1].value[1]);
             }
-            break;
-        default:
-            printf("[SCAP AS] Error: Unsupported opcode %s\n", mnemonic);
+        } else {
+            printf("[SCAP AS] Error: Missing address\n");
             exit(1);
-    }
-    //switch byte order of addr to big endian if neeeded
-    #ifdef _BIG_ENDIAN_
-        if(opcode != 0xFF){
-            instruction->addr = __builtin_bswap16(instruction->addr);
         }
-    #endif
+        break;
+    case 0xE:
+    case 0xF:
+        break;
+    case 0xFF: // DB(special case)
+        if (tokens[1].value[0] == '0' && tokens[1].value[1] == 'x') {
+            sscanf(tokens[1].value, "0x%hx", &instruction->addr);
+        } else if (tokens[1].value[0] == '0' && tokens[1].value[1] == 'b') {
+            sscanf(tokens[1].value, "0b%hx", &instruction->addr);
+        } else if (tokens[1].value[0] == '$') {
+            instruction->addr = get_tag_addr(&tokens[1].value[1]);
+        }
+        break;
+    default:
+        printf("[SCAP AS] Error: Unsupported opcode %s\n", mnemonic);
+        exit(1);
+    }
+// switch byte order of addr to big endian if neeeded
+#ifdef _BIG_ENDIAN_
+    if (opcode != 0xFF) {
+        instruction->addr = __builtin_bswap16(instruction->addr);
+    }
+#endif
     instruction->byte1 = opcode << 4;
     instruction->byte1 |= reg1 << 0;
     instruction->byte1 |= reg2 << 2;
-    if(opcode != 0xFF){
-        #ifdef _BIG_ENDIAN_
+    if (opcode != 0xFF) {
+#ifdef _BIG_ENDIAN_
         // Log decoded values switched
-        printf("[SCAP AS] Decoded: BIN=0x%02x%02x%02x%02x\n",
-               instruction->byte1, instruction->addr & 0xff,
-               instruction->addr >> 8, instruction->imm);
-        #else
+        if (verbose_mode)
+            printf("[SCAP AS] Decoded: BIN=0x%02x%02x%02x%02x\n",
+                   instruction->byte1, instruction->addr & 0xff,
+                   instruction->addr >> 8, instruction->imm);
+#else
         // Log decoded values normally
-        printf("[SCAP AS] Decoded: BIN=0x%02x%04x%02x\n",
-               instruction->byte1, instruction->addr, instruction->imm);
-        #endif
-    }else{
-        // Log DB value 
-        printf("[SCAP AS] DB val: 0x%02x\n",
-               instruction->addr & 0xff);
+        if (verbose_mode)
+            printf("[SCAP AS] Decoded: BIN=0x%02x%04x%02x\n",
+                   instruction->byte1, instruction->addr, instruction->imm);
+#endif
+    } else {
+        // Log DB value
+        if (verbose_mode)
+            printf("[SCAP AS] DB val: 0x%02x\n", instruction->addr & 0xff);
     }
 }
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        printf("[SCAP AS] Usage: %s <input file>\n", argv[0]);
+        perror("[SCAP AS] Usage: %s <input file>\n", argv[0]);
         return 1;
     }
 
@@ -295,48 +312,52 @@ int main(int argc, char **argv) {
     struct Token tokens[10]; // Assuming a maximum of 10 tokens per line
     struct Instruction instruction;
     uint16_t curraddr = 0;
-    //get tags
+    // get tags
     while (fgets(line, sizeof(line), input_file) != NULL) {
         // Ignore comments and empty lines
         if (line[0] == ';' || line[0] == '\n' || line[0] == '\r') {
             continue;
         }
         // Tokenize the line
-        int token_count = tokenize_line(line, tokens, sizeof(tokens) / sizeof(tokens[0]));
+        int token_count =
+            tokenize_line(line, tokens, sizeof(tokens) / sizeof(tokens[0]));
 
-        if(token_count >= 0){
-            //detect tags
-            if(tokens[0].value[strlen(tokens[0].value) - 1] == ':'){
-                for(int i = 0; i < 255; i++){
-                    if(tags[i].exists == false){
+        if (token_count >= 0) {
+            // detect tags
+            if (tokens[0].value[strlen(tokens[0].value) - 1] == ':') {
+                for (int i = 0; i < 255; i++) {
+                    if (tags[i].exists == false) {
                         tags[i].exists = true;
-                        memcpy(tags[i].name, &tokens[0].value[0], strlen(tokens[0].value) - 1);
+                        memcpy(tags[i].name, &tokens[0].value[0],
+                               strlen(tokens[0].value) - 1);
                         tags[i].name[strlen(tokens[0].value) - 1] = '\0';
                         tags[i].addr = curraddr;
-                        printf("[SCAP AS] Found tag: \"%s\", at address: 0x%04x\n", tags[i].name, tags[i].addr);
+                        printf(
+                            "[SCAP AS] Found Tag: \"%s\", at address: 0x%04x\n",
+                            tags[i].name, tags[i].addr);
                         break;
                     }
                 }
                 if (token_count >= 2 && tokens[1].value[0] != ';') {
                     str_toupper(tokens[1].value);
-                    if(strcmp(tokens[1].value, "DB") == 0){
+                    if (strcmp(tokens[1].value, "DB") == 0) {
                         curraddr += 1;
-                    }else{
+                    } else {
                         curraddr += 4;
                     }
                 }
-            }else{
+            } else {
                 str_toupper(tokens[0].value);
-                if(strcmp(tokens[0].value, "DB") == 0){
+                if (strcmp(tokens[0].value, "DB") == 0) {
                     curraddr += 1;
-                }else{
+                } else {
                     curraddr += 4;
                 }
             }
         }
     }
 
-    //rewind input file
+    // rewind input file
     fseek(input_file, 0, SEEK_SET);
 
     while (fgets(line, sizeof(line), input_file) != NULL) {
@@ -345,43 +366,43 @@ int main(int argc, char **argv) {
             continue;
         }
         // Tokenize the line
-        int token_count = tokenize_line(line, tokens, sizeof(tokens) / sizeof(tokens[0]));
+        int token_count =
+            tokenize_line(line, tokens, sizeof(tokens) / sizeof(tokens[0]));
 
         // Parse tokens to generate the instruction
         if (token_count > 0) {
-            //ignore tags
-            if(tokens[0].value[strlen(tokens[0].value) - 1] == ':'){
-                if(token_count >= 2 && tokens[1].value[0] != ';') {
+            // ignore tags
+            if (tokens[0].value[strlen(tokens[0].value) - 1] == ':') {
+                if (token_count >= 2 && tokens[1].value[0] != ';') {
                     parse_instruction(&tokens[1], token_count, &instruction);
-                    if(instruction.byte1 == 0xFF) {
+                    if (instruction.byte1 == 0xFF) {
                         instruction.addr &= 0xFF;
-                        fwrite(&instruction.addr , 1, 1, output_file);
-                    }else{
+                        fwrite(&instruction.addr, 1, 1, output_file);
+                    } else {
                         fwrite(&instruction.byte1, 1, 1, output_file);
                         fwrite(&instruction.byte1, 1, 1, output_file);
                         fwrite(&instruction.imm, 2, 1, output_file);
                     }
                 }
-            } else{
+            } else {
                 parse_instruction(tokens, token_count, &instruction);
-                if(instruction.byte1 == 0xFF) {
+                if (instruction.byte1 == 0xFF) {
                     instruction.addr &= 0xFF;
-                    fwrite(&instruction.addr , 1, 1, output_file);
-                }else{
+                    fwrite(&instruction.addr, 1, 1, output_file);
+                } else {
                     fwrite(&instruction.byte1, 1, 1, output_file);
                     fwrite(&instruction.addr, 2, 1, output_file);
                     fwrite(&instruction.imm, 1, 1, output_file);
                 }
             }
-
         }
     }
 
-    printf("[SCAP AS] Assembly completed. Output written to %s\n", output_filename);
+    printf("[SCAP AS] Assembly completed. Output written to %s\n",
+           output_filename);
 
     fclose(input_file);
     fclose(output_file);
 
     return 0;
 }
-

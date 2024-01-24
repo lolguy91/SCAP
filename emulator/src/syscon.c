@@ -1,23 +1,23 @@
+#include <SCAPCore.h>
 #include <bus.h>
-#include <uart.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <SCAPCore.h>
+#include <uart.h>
 
 uint16_t syscon_base;
 bool should_run;
-uint8_t syscon_read(uint16_t addr){
-    if (addr != syscon_base){
+uint8_t syscon_read(uint16_t addr) {
+    if (addr != syscon_base) {
         return 0;
     }
-    //TODO: return smth
+    // TODO: return smth
     return 0;
 }
-void syscon_write(uint16_t addr, uint8_t data){
-    if (addr != syscon_base){
+void syscon_write(uint16_t addr, uint8_t data) {
+    if (addr != syscon_base) {
         return;
     }
-    if(data == 0x69){
+    if (data == 0x69) {
         should_run = false;
     } else if (data == 0x70) {
         printf("Register Dump:\n\r");
@@ -28,12 +28,11 @@ void syscon_write(uint16_t addr, uint8_t data){
         printf("B:                      0x%02X\n\r", B);
         printf("Flags:                  0x%02X\n\r", flags);
         printf("====================\n\r");
-
     }
 }
-void syscon_check_for_killsignal(){
-    while(should_run){
-        if(uart_check_for_killsignal()){
+void syscon_check_for_killsignal() {
+    while (should_run) {
+        if (uart_check_for_killsignal()) {
             printf("\n[SCAP EMULATOR] Terminated by user\r\n");
             should_run = false;
             uart_uncapture();
@@ -41,8 +40,8 @@ void syscon_check_for_killsignal(){
         }
     }
 }
-void syscon_init(uint16_t base){
+void syscon_init(uint16_t base) {
     syscon_base = base;
     should_run = true;
-    add_device(base,1,syscon_read, syscon_write);
+    add_device(base, 1, syscon_read, syscon_write);
 }

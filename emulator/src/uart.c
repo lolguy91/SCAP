@@ -1,9 +1,9 @@
 #include <bus.h>
-#include <uart.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <termios.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
+#include <termios.h>
+#include <uart.h>
 #include <unistd.h>
 
 uint16_t uart_base;
@@ -11,35 +11,35 @@ int terminal;
 struct termios original_settings;
 struct winsize winsize;
 
-uint8_t uart_read(uint16_t addr){
-    if (addr != uart_base){
+uint8_t uart_read(uint16_t addr) {
+    if (addr != uart_base) {
         return 0;
     }
     uint8_t data;
-    scanf("%c",&data);
+    scanf("%c", &data);
     return data;
 }
-void uart_write(uint16_t addr, uint8_t data){
-    if (addr != uart_base){
+void uart_write(uint16_t addr, uint8_t data) {
+    if (addr != uart_base) {
         return;
     }
-    printf("%c",data);
+    printf("%c", data);
 }
-bool uart_check_for_killsignal(){
+bool uart_check_for_killsignal() {
     // killsignal = Ctrl + C
     char c;
     read(terminal, &c, 1);
-    if (c == 3){
+    if (c == 3) {
         return true;
     }
     return false;
 }
-void uart_uncapture(){
+void uart_uncapture() {
     tcsetattr(terminal, TCSANOW, &original_settings);
     close(terminal);
 }
 
-void uart_init(uint16_t base){
+void uart_init(uint16_t base) {
     uart_base = base;
     terminal = 0;
     if (terminal < 0) {
@@ -65,5 +65,5 @@ void uart_init(uint16_t base){
     ioctl(terminal, TIOCSWINSZ, &winsize);
     ioctl(terminal, TCSETAF, 0);
 
-    add_device(base,1,uart_read, uart_write);
+    add_device(base, 1, uart_read, uart_write);
 }

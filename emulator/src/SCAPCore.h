@@ -10,7 +10,7 @@ extern uint16_t PC;
 extern uint16_t SP;
 extern uint8_t flags;
 
-bool step_scap();
+bool scap_step();
 void scap_init(bool debug_mode);
 void scap_interrupt();
 

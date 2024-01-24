@@ -22,4 +22,9 @@ clean:
 	$(MAKE) -C emulator clean
 	$(MAKE) -C assembler clean
 
+CFILES = $(shell find . -name "*.c")
+HFILES = $(shell find . -name "*.h")
+format:
+	clang-format -i $(CFILES) $(HFILES)
+
 .PHONY: make-emu make-as run-emu run-as install-emu install-as install-all clean

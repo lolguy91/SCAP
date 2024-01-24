@@ -1,6 +1,6 @@
 #include "SCAPCore.h"
-#include <stdio.h>
 #include "bus.h"
+#include <stdio.h>
 
 // registers
 uint8_t A;
@@ -19,8 +19,8 @@ uint8_t imm;
 
 bool debug;
 
-bool scap_fetch()
-{
+bool scap_fetch() {
+    // Instruction on SCAP are 4 bytes long
     uint8_t low = bus_read(PC);
     uint8_t mid = bus_read(PC + 1);
     uint8_t high = bus_read(PC + 2);
@@ -30,8 +30,15 @@ bool scap_fetch()
     return true;
 }
 
-bool scap_decode()
-{
+bool scap_decode() {
+    // On SCAP, the first 4 bits are the opcode
+    // the next 2 bits are the first register
+    // the next 2 bits are the second register
+    // the next 16 bits are the address
+    // and the las 8 bits are the immediate value.
+    // Everything except the opcode is optional.
+    // The address is in Little Endian.
+
     opcode = (instruction >> 4) & 0xF;
     reg1 = (instruction >> 0) & 0x3;
     reg2 = (instruction >> 2) & 0x3;
@@ -40,10 +47,10 @@ bool scap_decode()
     return true;
 }
 
-bool write_reg(uint8_t reg, uint8_t data)
-{
-    switch (reg)
-    {
+bool write_reg(uint8_t reg, uint8_t data) {
+    // of the 6 builtin registers, only 4 are accessable
+    // because I only have 2 bits for a register number
+    switch (reg) {
     case 0: // A register
         A = data;
         return true;
@@ -62,10 +69,10 @@ bool write_reg(uint8_t reg, uint8_t data)
     return false;
 }
 
-uint8_t read_reg(uint8_t reg)
-{
-    switch (reg)
-    {
+uint8_t read_reg(uint8_t reg) {
+    // of the 6 builtin registers, only 4 are accessable
+    // because I only have 2 bits for a register number
+    switch (reg) {
     case 0: // A register
         return A;
     case 1: // B register
@@ -78,16 +85,16 @@ uint8_t read_reg(uint8_t reg)
     return 0;
 }
 
-bool scap_execute()
-{
+bool scap_execute() {
+    // NOTE:these values are only used by ADD and SUB
     uint8_t a = 0;
     uint8_t b = 0;
     uint8_t result = 0;
-    switch (opcode)
-    {
+
+    switch (opcode) {
     case 0x0: // LD
         return write_reg(reg1, bus_read(addr));
-    case 0x1: //  ST
+    case 0x1: // ST
         bus_write(addr, read_reg(reg1));
         return true;
     case 0x2: // MV
@@ -97,8 +104,7 @@ bool scap_execute()
         b = read_reg(reg2);
         result = a + b;
         flags = 0;
-        if (result == 0)
-        {
+        if (result == 0) {
             flags |= 0x1;
         }
         return write_reg(reg1, result);
@@ -107,8 +113,7 @@ bool scap_execute()
         b = read_reg(reg2);
         result = a - b;
         flags = 0;
-        if (result == 0)
-        {
+        if (result == 0) {
             flags |= 0x1;
         }
         return write_reg(reg1, result);
@@ -126,22 +131,21 @@ bool scap_execute()
         PC = addr;
         return true;
     case 0x9: // JZ
-        if (flags & 0x1)
-        {
+        if (flags & 0x1) {
             PC = addr;
         }
         return true;
     case 0xA: // JNZ
-    
-        if (!(flags & 0x1))
-        {
+
+        if (!(flags & 0x1)) {
             PC = addr;
         }
         return true;
     case 0xB: // LDP
-        return write_reg(reg1, bus_read(bus_read(addr + 1) << 8) | bus_read(addr));
+        return write_reg(reg1,
+                         bus_read(bus_read(addr + 1) << 8) | bus_read(addr));
     case 0xC: // LDI
-        return write_reg(reg1,imm);
+        return write_reg(reg1, imm);
     case 0xD: // CALL
         SP++;
         bus_write(SP, PC & 0xFF);
@@ -159,10 +163,8 @@ bool scap_execute()
     return false;
 }
 
-bool step_scap()
-{
-    if (debug)
-    {
+bool scap_step() {
+    if (debug) {
         printf("PC: 0x%04X\r\n", PC);
         printf("SP: 0x%04X\r\n", SP);
         printf("A: 0x%02X\r\n", A);
@@ -170,15 +172,14 @@ bool step_scap()
         printf("flags: 0x%02X\r\n", flags);
     }
 
-    bool f = scap_fetch();
-    if (!f)
-        return false;
-    bool d = scap_decode();
-    if (!d)
-        return false;
+    /*bool f =*/scap_fetch();
+    // if (!f)               Useless, since fetch can't fail
+    //    return false;
+    /*bool d =*/scap_decode();
+    // if (!d)               Useless, since decode can't fail
+    //    return false;
     bool e = scap_execute();
-    if (debug)
-    {
+    if (debug) {
         printf("========\r\n");
         printf("opcode: 0x%02X\r\n", opcode);
         printf("addr: 0x%04X\r\n", addr);
@@ -186,11 +187,12 @@ bool step_scap()
         printf("reg2: %d\r\n", reg2);
         printf("imm: 0x%02X\r\n", imm);
     }
+    // If execute fails,we return false
     return e;
 }
 
-void scap_init(bool debug_mode)
-{
+void scap_init(bool debug_mode) {
+    // Reset registers to default values defined by the specification
     A = 0;
     B = 0;
     PC = 0;
@@ -200,8 +202,7 @@ void scap_init(bool debug_mode)
     debug = debug_mode;
 }
 
-void scap_interrupt()
-{
+void scap_interrupt() {
     SP++;
     bus_write(SP, PC & 0xFF);
     SP++;
