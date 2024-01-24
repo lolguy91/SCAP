@@ -7,7 +7,7 @@ chmod +x install.sh && ./install.sh
 ```
 
 # Usage
-**scap-emu**: qemu-emu [-d] <rom>
+**scap-emu**: qemu-emu [-d] <rom> </br>
 **scap-as**: qemu-as <input file>
 
 # Credits
