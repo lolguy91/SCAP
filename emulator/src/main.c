@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    //Parse arguments
+    // Parse arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-d") == 0) {
             debug_mode = 1;

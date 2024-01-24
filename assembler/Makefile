@@ -22,7 +22,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 clean:
-	rm -rf $(OBJDIR)/*.o 
+	rm -rf $(OBJDIR)
 
 install: $(TARGET)
 	@sudo mkdir -p $(INSTALL_DIR)

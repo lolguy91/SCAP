@@ -3,6 +3,7 @@
 
 #include <bus.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 //\brief Load ROM into memory

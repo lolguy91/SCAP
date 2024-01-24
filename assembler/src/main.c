@@ -283,7 +283,7 @@ void parse_instruction(struct Token *tokens, int token_count,
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        perror("[SCAP AS] Usage: %s <input file>\n", argv[0]);
+        printf("[SCAP AS] Usage: %s <input file>\n", argv[0]);
         return 1;
     }
 
@@ -361,13 +361,18 @@ int main(int argc, char **argv) {
     fseek(input_file, 0, SEEK_SET);
 
     while (fgets(line, sizeof(line), input_file) != NULL) {
-        // Ignore comments and empty lines
-        if (line[0] == ';' || line[0] == '\n' || line[0] == '\r') {
+        // Ignoreempty lines
+        if (line[0] == '\n' || line[0] == '\r') {
             continue;
         }
         // Tokenize the line
         int token_count =
             tokenize_line(line, tokens, sizeof(tokens) / sizeof(tokens[0]));
+
+        // Ignore comments
+        if (tokens[0].value[0] == ';' || token_count < 0) {
+            continue;
+        }
 
         // Parse tokens to generate the instruction
         if (token_count > 0) {
