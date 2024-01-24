@@ -1,9 +1,7 @@
 jmp $main
- 
 
-disable_keyboard:
-    ld A 0x00
-    st A 0xFF00  
+dump_signal: db 0x70
 
 main:
-    jmp $disable_keyboard
+    ld A $dump_signal
+    st A 0xFFEE

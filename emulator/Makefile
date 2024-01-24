@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Werror -Isrc -g
+CFLAGS = -Wall -Werror -Isrc -g -pthread
 SRCDIR = src
 OBJDIR = bin
 TARGET = bin/scap-emu

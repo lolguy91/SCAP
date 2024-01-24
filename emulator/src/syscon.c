@@ -2,6 +2,7 @@
 #include <uart.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <SCAPCore.h>
 
 uint16_t syscon_base;
 bool should_run;
@@ -18,6 +19,16 @@ void syscon_write(uint16_t addr, uint8_t data){
     }
     if(data == 0x69){
         should_run = false;
+    } else if (data == 0x70) {
+        printf("Register Dump:\n\r");
+        printf("====================\n\r");
+        printf("Program Counter (PC):   0x%04X\n\r", PC);
+        printf("Stack Pointer (SP):     0x%04X\n\r", SP);
+        printf("A:                      0x%02X\n\r", A);
+        printf("B:                      0x%02X\n\r", B);
+        printf("Flags:                  0x%02X\n\r", flags);
+        printf("====================\n\r");
+
     }
 }
 void syscon_check_for_killsignal(){
