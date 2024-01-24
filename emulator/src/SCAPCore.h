@@ -2,6 +2,7 @@
 #define SCAPCORE_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 extern uint8_t A;
 extern uint8_t B;
