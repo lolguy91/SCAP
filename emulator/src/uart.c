@@ -32,6 +32,10 @@ void uart_check_for_killsignal(){
         exit(0);
     }
 }
+void uart_uncapture(){
+    tcsetattr(terminal, TCSANOW, &original_settings);
+    close(terminal);
+}
 
 void uart_init(uint16_t base){
     uart_base = base;

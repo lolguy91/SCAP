@@ -18,6 +18,8 @@ hw: ;goes backwards
     db 0x48
 spl: db $hw
 zero: db 00
+shutdown_signal: db 0x69
+
 ;main function
 main:
     ld B $zero
@@ -28,7 +30,7 @@ print:
     st A 0xFF00 
     sub A B
     jnz $print     ;jump back to print
-
 end:
-    jmp $end
+    ld A $shutdown_signal
+    st A 0xFFEE
 

@@ -5,6 +5,7 @@
 #include <rom.h>
 #include <ram.h>
 #include <uart.h>
+#include <syscon.h>
 #include <SCAPCore.h>
 
 int main(int argc, char *argv[]) {
@@ -31,9 +32,11 @@ int main(int argc, char *argv[]) {
     rom_init(0x0000, 0xFF, rom);
     ram_init(0x00FF, 0x8000);
     uart_init(0xFF00);
+    syscon_init(0xFFEE);
     scap_init(debug_mode);
 
-    while (1) {
+
+    while (should_run) {
         if (!step_scap()) break;
         if (!debug_mode) continue;
         
@@ -41,6 +44,7 @@ int main(int argc, char *argv[]) {
         char c;
         scanf("%c", &c);
     }
+    uart_uncapture();
 
     return 0;
 }
