@@ -199,7 +199,7 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
                 }else if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'b'){
                     sscanf(tokens[2].value, "0b%hhx", &instruction->imm);
                 } else if(tokens[2].value[0] == '$'){
-                    instruction->imm = get_tag_addr(&tokens[2].value[1]) && 0xFF;
+                    instruction->imm = get_tag_addr(&tokens[2].value[1]) & 0xFF;
                 }
             }else{
                 printf("[SCAP AS] Error: Missing register or address\n");

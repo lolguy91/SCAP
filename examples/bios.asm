@@ -21,13 +21,11 @@ jmp $main
     db 0x43
 
 letter_start: db 0x53
-spl: db $letter_start
-zero: db 00
 
 main:
-    ld B $zero
-    ld SPL $spl
-    ld SPH $zero
+    ldi B 0x00
+    ldi SPL $letter_start
+    ldi SPH 0x00
 print:
     pop A
     st A 0xFF00 

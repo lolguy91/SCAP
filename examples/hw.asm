@@ -17,21 +17,18 @@ jmp $main
     db 0x65
 hw: ;goes backwards
     db 0x48
-spl: db $hw
-zero: db 00
-shutdown_signal: db 0x69
 
 ;main function
 main:
-    ld B $zero
-    ld SPL $spl
-    ld SPH $zero
+    ldi B 0x00
+    ldi SPL $hw
+    ldi SPH 0x00
 print:
     pop A
     st A 0xFF00 
     sub A B
     jnz $print     ;jump back to print
 end:
-    ld A $shutdown_signal
+    ldi A 0x69
     st A 0xFFEE
 
