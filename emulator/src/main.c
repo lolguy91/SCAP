@@ -7,28 +7,42 @@
 #include <uart.h>
 #include <syscon.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <SCAPCore.h>
+
+//config
+int debug_mode = 0;
+int clock_rate = 1000000;
+char* input_file;
 
 int main(int argc, char *argv[]) {
     FILE *rom;
-    int debug_mode = 0;
+    
 
-    if (argc < 2 || argc > 3) {
-        printf("Usage: %s [-d] <rom>\n", argv[0]);
+    if (argc < 2) {
+        printf("Usage: %s [-d] [-s]  <rom>\n", argv[0]);
         return 1;
     }
-
-    if (argc == 3 && strcmp(argv[1], "-d") == 0) {
-        debug_mode = 1;
-        rom = fopen(argv[2], "rb");
-    } else {
-        rom = fopen(argv[1], "rb");
+    for(int i = 1; i < argc; i++){
+        if(strcmp(argv[i], "-d") == 0){
+            debug_mode = 1;
+        }else if(strcmp(argv[i], "-s") == 0){
+            clock_rate = atoi(argv[i + 1]);
+            i++;
+        }else{
+            input_file = argv[i];
+        }
     }
-
+    if (input_file == NULL) {
+        printf("[SCAP EM] Error: No input file provided.\n");
+        return 1;
+    }
+    rom = fopen(input_file, "rb");
     if (rom == NULL) {
-        printf("Error opening %s\n", (argc == 3) ? argv[2] : argv[1]);
+        perror("[SCAP EM] Error:Error opening ROM");
         return 1;
     }
+
 
     rom_init(0x0000, 0xFF, rom);
     ram_init(0x00FF, 0x8000);
@@ -43,6 +57,10 @@ int main(int argc, char *argv[]) {
 
 
     while (should_run) {
+        //slow down to clock speed
+        usleep(1000000 / clock_rate);
+        
+        // Run the emulator
         if (!step_scap()) break;
         if (!debug_mode) continue;
         
