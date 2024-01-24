@@ -1,4 +1,5 @@
 #include <bus.h>
+#include <uart.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <termios.h>
@@ -24,13 +25,14 @@ void uart_write(uint16_t addr, uint8_t data){
     }
     printf("%c",data);
 }
-void uart_check_for_killsignal(){
+bool uart_check_for_killsignal(){
     // killsignal = Ctrl + C
     char c;
     read(terminal, &c, 1);
     if (c == 3){
-        exit(0);
+        return true;
     }
+    return false;
 }
 void uart_uncapture(){
     tcsetattr(terminal, TCSANOW, &original_settings);

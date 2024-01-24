@@ -6,6 +6,7 @@
 #include <ram.h>
 #include <uart.h>
 #include <syscon.h>
+#include <pthread.h>
 #include <SCAPCore.h>
 
 int main(int argc, char *argv[]) {
@@ -34,6 +35,11 @@ int main(int argc, char *argv[]) {
     uart_init(0xFF00);
     syscon_init(0xFFEE);
     scap_init(debug_mode);
+
+    //spin up another thread that checks for killsignal
+    pthread_t thread;
+    pthread_create(&thread, NULL, (void*)syscon_check_for_killsignal, NULL);
+    pthread_detach(thread);
 
 
     while (should_run) {

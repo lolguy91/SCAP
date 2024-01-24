@@ -2,6 +2,7 @@ jmp $main
 ;data section
     db 0x00
     db 0x0A
+    db 0x0D
     db 0x21
     db 0x64 
     db 0x6C

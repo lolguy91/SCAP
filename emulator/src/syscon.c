@@ -1,9 +1,7 @@
 #include <bus.h>
-#include <stdlib.h>
+#include <uart.h>
 #include <stdio.h>
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
+#include <stdlib.h>
 
 uint16_t syscon_base;
 bool should_run;
@@ -20,6 +18,16 @@ void syscon_write(uint16_t addr, uint8_t data){
     }
     if(data == 0x69){
         should_run = false;
+    }
+}
+void syscon_check_for_killsignal(){
+    while(should_run){
+        if(uart_check_for_killsignal()){
+            printf("\n[SCAP EMULATOR] Terminated by user\r\n");
+            should_run = false;
+            uart_uncapture();
+            exit(0);
+        }
     }
 }
 void syscon_init(uint16_t base){

@@ -9,6 +9,7 @@
 struct Instruction {
     uint8_t byte1;
     uint16_t addr;
+    uint8_t imm;
 };
 
 // Register structure
@@ -98,7 +99,7 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
         opcode = 0x3;
     } else if (strcmp(mnemonic, "SUB") == 0) {
         opcode = 0x4;
-    } else if (strcmp(mnemonic, "LDP") == 0) {
+    } else if (strcmp(mnemonic, "LS") == 0) {
         opcode = 0x5;
     } else if (strcmp(mnemonic, "PUSH") == 0) {
         opcode = 0x6;
@@ -110,9 +111,9 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
         opcode = 0x9;
     } else if (strcmp(mnemonic, "JNZ") == 0) {
         opcode = 0xA;
-    } else if (strcmp(mnemonic, "JC") == 0) {
+    } else if (strcmp(mnemonic, "LDP") == 0) {
         opcode = 0xB;
-    } else if (strcmp(mnemonic, "JNC") == 0) {
+    } else if (strcmp(mnemonic, "LDI") == 0) {
         opcode = 0xC;
     } else if (strcmp(mnemonic, "CALL") == 0) {
         opcode = 0xD;
@@ -160,7 +161,6 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
         case 0x5:
             if (token_count >= 2) {
                 reg1 = regname2id(tokens[1].value);
-                reg2 = regname2id(tokens[2].value);
             } else {
                 printf("[SCAP AS] Error: Missing register\n");
                 exit(1);
@@ -176,7 +176,39 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
             }
             break;
 
-        case 0x8: case 0x9: case 0xA: case 0xB: case 0xC: case 0xD:
+        case 0xB:
+            if (token_count >= 3) {
+                reg1 = regname2id(tokens[1].value);
+                if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'x'){
+                    sscanf(tokens[2].value, "0x%hx", &instruction->addr);
+                }else if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'b'){
+                    sscanf(tokens[2].value, "0b%hx", &instruction->addr);
+                } else if(tokens[2].value[0] == '$'){
+                    instruction->addr = get_tag_addr(&tokens[2].value[1]);
+                }
+            }else{
+                printf("[SCAP AS] Error: Missing register or address\n");
+                exit(1);
+            }
+            break;
+        case 0xC:
+            if (token_count >= 3) {
+                reg1 = regname2id(tokens[1].value);
+                if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'x'){
+                    sscanf(tokens[2].value, "0x%hhx", &instruction->imm);
+                }else if(tokens[2].value[0] == '0' && tokens[2].value[1] == 'b'){
+                    sscanf(tokens[2].value, "0b%hhx", &instruction->imm);
+                } else if(tokens[2].value[0] == '$'){
+                    instruction->imm = get_tag_addr(&tokens[2].value[1]) && 0xFF;
+                }
+            }else{
+                printf("[SCAP AS] Error: Missing register or address\n");
+                exit(1);
+            }
+            break;
+
+            break;
+        case 0x8: case 0x9: case 0xA: case 0xD:
             if (token_count >= 2) {
                 if(tokens[1].value[0] == '0' && tokens[1].value[1] == 'x'){
                     sscanf(tokens[1].value, "0x%hx", &instruction->addr);
@@ -217,13 +249,13 @@ void parse_instruction(struct Token *tokens, int token_count, struct Instruction
     if(opcode != 0xFF){
         #ifdef _BIG_ENDIAN_
         // Log decoded values switched
-        printf("[SCAP AS] Decoded: BIN=0x%02x%02x%02x\n",
+        printf("[SCAP AS] Decoded: BIN=0x%02x%02x%02x%02x\n",
                instruction->byte1, instruction->addr & 0xff,
-               instruction->addr >> 8);
+               instruction->addr >> 8, instruction->imm);
         #else
         // Log decoded values normally
-        printf("[SCAP AS] Decoded: BIN=0x%02x%04x\n",
-               instruction->byte1, instruction->addr);
+        printf("[SCAP AS] Decoded: BIN=0x%02x%04x%02x\n",
+               instruction->byte1, instruction->addr, instruction->imm);
         #endif
     }else{
         // Log DB value 
@@ -262,7 +294,7 @@ int main(int argc, char **argv) {
     char line[100];
     struct Token tokens[10]; // Assuming a maximum of 10 tokens per line
     struct Instruction instruction;
-    uint16_t curraddr;
+    uint16_t curraddr = 0;
     //get tags
     while (fgets(line, sizeof(line), input_file) != NULL) {
         // Ignore comments and empty lines
@@ -281,7 +313,7 @@ int main(int argc, char **argv) {
                         memcpy(tags[i].name, &tokens[0].value[0], strlen(tokens[0].value) - 1);
                         tags[i].name[strlen(tokens[0].value) - 1] = '\0';
                         tags[i].addr = curraddr;
-                        printf("[SCAP AS] Found tag: %s\n", tags[i].name);
+                        printf("[SCAP AS] Found tag: \"%s\", at address: 0x%04x\n", tags[i].name, tags[i].addr);
                         break;
                     }
                 }
@@ -290,7 +322,7 @@ int main(int argc, char **argv) {
                     if(strcmp(tokens[1].value, "DB") == 0){
                         curraddr += 1;
                     }else{
-                        curraddr += 3;
+                        curraddr += 4;
                     }
                 }
             }else{
@@ -298,7 +330,7 @@ int main(int argc, char **argv) {
                 if(strcmp(tokens[0].value, "DB") == 0){
                     curraddr += 1;
                 }else{
-                    curraddr += 3;
+                    curraddr += 4;
                 }
             }
         }
@@ -306,7 +338,6 @@ int main(int argc, char **argv) {
 
     //rewind input file
     fseek(input_file, 0, SEEK_SET);
-    curraddr = 0;
 
     while (fgets(line, sizeof(line), input_file) != NULL) {
         // Ignore comments and empty lines
@@ -325,11 +356,10 @@ int main(int argc, char **argv) {
                     if(instruction.byte1 == 0xFF) {
                         instruction.addr &= 0xFF;
                         fwrite(&instruction.addr , 1, 1, output_file);
-                        curraddr += 1;
                     }else{
                         fwrite(&instruction.byte1, 1, 1, output_file);
-                        fwrite(&instruction.addr, 2, 1, output_file);
-                        curraddr += 3;
+                        fwrite(&instruction.byte1, 1, 1, output_file);
+                        fwrite(&instruction.imm, 2, 1, output_file);
                     }
                 }
             } else{
@@ -337,11 +367,10 @@ int main(int argc, char **argv) {
                 if(instruction.byte1 == 0xFF) {
                     instruction.addr &= 0xFF;
                     fwrite(&instruction.addr , 1, 1, output_file);
-                    curraddr += 1;
                 }else{
                     fwrite(&instruction.byte1, 1, 1, output_file);
                     fwrite(&instruction.addr, 2, 1, output_file);
-                    curraddr += 3;
+                    fwrite(&instruction.imm, 1, 1, output_file);
                 }
             }
 

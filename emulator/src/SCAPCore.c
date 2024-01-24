@@ -15,6 +15,7 @@ uint8_t opcode;
 uint8_t reg1;
 uint8_t reg2;
 uint16_t addr;
+uint8_t imm;
 
 bool debug;
 
@@ -23,8 +24,9 @@ bool scap_fetch()
     uint8_t low = bus_read(PC);
     uint8_t mid = bus_read(PC + 1);
     uint8_t high = bus_read(PC + 2);
-    instruction = (high << 16) | (mid << 8) | low;
-    PC += 3;
+    uint8_t even_higher = bus_read(PC + 3);
+    instruction = (even_higher << 24) | (high << 16) | (mid << 8) | low;
+    PC += 4;
     return true;
 }
 
@@ -34,6 +36,7 @@ bool scap_decode()
     reg1 = (instruction >> 0) & 0x3;
     reg2 = (instruction >> 2) & 0x3;
     addr = (instruction >> 8) & 0xFFFF;
+    imm = (instruction >> 24) & 0xFF;
     return true;
 }
 
@@ -98,10 +101,6 @@ bool scap_execute()
         {
             flags |= 0x1;
         }
-        if ((uint32_t)a + (uint32_t)b > 0xFF)
-        {
-            flags |= 0x2;
-        }
         return write_reg(reg1, result);
     case 0x4: // SUB
         a = read_reg(reg1);
@@ -112,13 +111,9 @@ bool scap_execute()
         {
             flags |= 0x1;
         }
-        if ((int32_t)a + (int32_t)b < 0)
-        {
-            flags |= 0x2;
-        }
         return write_reg(reg1, result);
-    case 0x5: // LDP
-        return write_reg(reg1, bus_read((uint16_t)read_reg(reg2)));
+    case 0x5: // SL
+        return write_reg(reg1, read_reg(reg1) << read_reg(reg1));
     case 0x6: // PUSH
         SP++;
         bus_write(SP, read_reg(reg1));
@@ -143,18 +138,10 @@ bool scap_execute()
             PC = addr;
         }
         return true;
-    case 0xB: // JC
-        if (flags & 0x2)
-        {
-            PC = addr;
-        }
-        return true;
-    case 0xC: // JNC
-        if (!(flags & 0x2))
-        {
-            PC = addr;
-        }
-        return true;
+    case 0xB: // LDP
+        return write_reg(reg1, bus_read(bus_read(addr + 1) << 8) | bus_read(addr));
+    case 0xC: // LDI
+        return write_reg(reg1,imm);
     case 0xD: // CALL
         SP++;
         bus_write(SP, PC & 0xFF);
@@ -176,11 +163,11 @@ bool step_scap()
 {
     if (debug)
     {
-        printf("PC: 0x%04X\n", PC);
-        printf("SP: 0x%04X\n", SP);
-        printf("A: 0x%02X\n", A);
-        printf("B: 0x%02X\n", B);
-        printf("flags: 0x%02X\n", flags);
+        printf("PC: 0x%04X\r\n", PC);
+        printf("SP: 0x%04X\r\n", SP);
+        printf("A: 0x%02X\r\n", A);
+        printf("B: 0x%02X\r\n", B);
+        printf("flags: 0x%02X\r\n", flags);
     }
 
     bool f = scap_fetch();
@@ -192,11 +179,12 @@ bool step_scap()
     bool e = scap_execute();
     if (debug)
     {
-        printf("========\n");
-        printf("opcode: 0x%02X\n", opcode);
-        printf("addr: 0x%04X\n", addr);
-        printf("reg1: %d\n", reg1);
-        printf("reg2: %d\n", reg2);
+        printf("========\r\n");
+        printf("opcode: 0x%02X\r\n", opcode);
+        printf("addr: 0x%04X\r\n", addr);
+        printf("reg1: %d\r\n", reg1);
+        printf("reg2: %d\r\n", reg2);
+        printf("imm: 0x%02X\r\n", imm);
     }
     return e;
 }
