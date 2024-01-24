@@ -1,4 +1,4 @@
-%.o
-%.bin
+*.o
+*.bin
 emulator/bin/*
 assembler/bin/*
