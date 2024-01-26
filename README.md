@@ -1,5 +1,5 @@
 # SCAP
-Simpelest CPU Arch Possible(star me plz)
+the Stupidest CPU Arch Possible(star me plz)
 # Installing
 To install the emulator and assembler you can simply run the install script like this:
 ```bash
@@ -7,8 +7,8 @@ chmod +x install.sh && ./install.sh
 ```
 
 # Usage
-**scap-emu**: qemu-emu [-d] <rom> </br>
-**scap-as**: qemu-as <input file>
+**scap-emu**: scap-emu [-d] <rom> </br>
+**scap-as**: scap-as <input file>
 
 # Credits
 - [lolgy91](https://github.com/lolguy91)
