@@ -1,3 +1,7 @@
+# PROJECT DEAD
+it fucking is
+
+
 # SCAP
 the Stupidest CPU Arch Possible(star me plz)
 # Installing
